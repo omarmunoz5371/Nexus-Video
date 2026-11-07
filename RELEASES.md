@@ -4,7 +4,6 @@
 
 ## v0.1.0-beta.1 — Public Beta (Release Candidate)
 
-> **Status:** Release Candidate — awaiting owner approval before tag creation.
 > Compatible with Nexus Screen v0.2.0-beta.5.
 
 ### What is Nexus Video?
