@@ -165,18 +165,22 @@ sudo systemctl restart nexus-screen
 
 ## Hardware Compatibility
 
-| Hardware | Status | Notes |
-|---|---|---|
-| Raspberry Pi 4 (2 GB), 800×480 RGB565 DSI, Debian 12 | **PHYSICALLY TESTED** | Reference configuration |
-| Raspberry Pi 4 (4 GB), Voron 2.4, 800×480 BGRA8888, Debian 12 | **PHYSICALLY TESTED** | 32-bit framebuffer path |
-| BigTreeTech CB1, 480×320 RGB565 | SIMULATED / CODE-VALIDATED | Nexus Screen tested; NV convert step not run on CB1 |
-| Raspberry Pi 3, Pi 5, Pi Zero 2 W | NOT TESTED | Community reports welcome |
-| HDMI / SPI displays | NOT TESTED | `/dev/fb0` must be accessible |
-| Debian 11 Bullseye | **NOT SUPPORTED** | Blocked by installer |
+Nexus Video requires Nexus Screen to be installed first. The table below shows Nexus Video status independently.
 
-**Status:** PHYSICALLY TESTED = installed and confirmed on real hardware.
-SIMULATED / CODE-VALIDATED = logic verified; convert step not run on that hardware.
-NOT TESTED = unknown; community reports welcome.
+| Hardware | NV FFmpeg Conversion | NV Service / Playback | Notes |
+|---|---|---|---|
+| Raspberry Pi 4 (2 GB), 800×480 RGB565, Debian 12 | **ISOLATED EXECUTION** | NOT TESTED | Conversion verified on this machine; framebuffer playback not tested |
+| Raspberry Pi 4 (4 GB), Voron 2.4, 800×480 BGRA8888 | NOT TESTED | NOT TESTED | NS physically verified; NV not installed there |
+| BigTreeTech CB1, 480×320 RGB565 | NOT TESTED | NOT TESTED | NS physically verified; NV not tested |
+| Raspberry Pi 3, Pi 5, Pi Zero 2 W | NOT TESTED | NOT TESTED | Community reports welcome |
+| Debian 11 Bullseye | NOT SUPPORTED | NOT SUPPORTED | Installer blocks |
+
+**ISOLATED EXECUTION** = component tested in isolation (conversion, CLI) without full service installation.
+**NOT TESTED** = unknown; community reports welcome.
+
+Nexus Video framebuffer playback has not been physically verified end-to-end on any device.
+Installation and service configuration have not been run as a complete clean install on any device.
+This is a release candidate — contributions and hardware reports are welcome.
 
 ---
 

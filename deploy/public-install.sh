@@ -162,12 +162,10 @@ log "  Installing nexus-video.service..."
 if $DRY_RUN; then
   log "  [dry-run] install nexus-video.service (user=${TARGET_USER})"
 else
-  sed "s|@@USER@@|${TARGET_USER}|g" "${SERVICE_TMPL}" \
-    > /tmp/nexus-video.service.tmp
-  install -o root -g root -m 644 \
-    /tmp/nexus-video.service.tmp \
-    /etc/systemd/system/nexus-video.service
-  rm -f /tmp/nexus-video.service.tmp
+  _svc_tmp="$(mktemp /tmp/nexus-video.service.XXXXXX)"
+  sed "s|@@USER@@|${TARGET_USER}|g" "${SERVICE_TMPL}" > "${_svc_tmp}"
+  install -o root -g root -m 644 "${_svc_tmp}" /etc/systemd/system/nexus-video.service
+  rm -f "${_svc_tmp}"
   systemctl daemon-reload
 fi
 

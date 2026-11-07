@@ -16,7 +16,8 @@
 set -euo pipefail
 
 TARGET_USER="${SUDO_USER:-$(id -un)}"
-HOME_DIR="$(eval echo "~${TARGET_USER}")"
+HOME_DIR="$(getent passwd "${TARGET_USER}" | cut -d: -f6)"
+[[ -n "${HOME_DIR}" ]] || { echo "ERROR: Cannot determine home directory for ${TARGET_USER}" >&2; exit 1; }
 INSTALL_DIR="${HOME_DIR}/nexus-video"
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BACKUP_ROOT="${HOME_DIR}/.nexus-video-backup"

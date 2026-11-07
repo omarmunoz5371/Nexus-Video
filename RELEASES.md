@@ -76,11 +76,11 @@ Installing Nexus Video is entirely optional. Nexus Screen functions normally wit
 
 ### Known limitations
 
-- Built-in packs are built for 800×480 reference resolution; displayed at any resolution via
-  adaptive FFmpeg scaling
+- **Framebuffer playback not physically verified** — the complete `public-install.sh` → service → boot sequence has not been run end-to-end on any device; FFmpeg conversion has been verified in isolation on Raspberry Pi 4 (800×480 RGB565)
+- Built-in packs are built for 800×480 reference resolution; displayed at any resolution via adaptive FFmpeg scaling
 - In-app preview requires FFmpeg to be installed
 - No audio (startup chime is handled by Nexus Sounds, which remains unmodified)
-- Raspberry Pi 3, Pi 5, Pi Zero 2 W, HDMI and SPI displays: untested
+- Raspberry Pi 3, Pi 5, Pi Zero 2 W, HDMI and SPI displays: not tested
 
 ---
 
