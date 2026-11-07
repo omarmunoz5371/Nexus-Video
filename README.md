@@ -2,17 +2,36 @@
 
 > Cinematic boot splash add-on for [Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen).
 
-Nexus Video replaces the default Nexus Screen static splash with animated startup
-video packs. It plays a 10-second intro once at boot, then loops ambient video
-while the printer connects — with no desktop environment required.
+Nexus Video is an **optional add-on** for Nexus Screen. It replaces the default static splash
+with animated startup video packs. It plays a 10-second intro once at boot, then loops ambient
+video while the printer connects — with no desktop environment required.
 
 **Status: Public Beta**  
-Requires Nexus Screen v0.2.0-beta.4 or later.
+Requires [Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen) v0.2.0-beta.4 or later.
+
+---
+
+## Preview Gallery
+
+### Built-in Packs
+
+| Nexus Signature | Mechanical Core | System Init |
+|:---:|:---:|:---:|
+| ![Nexus Signature — white-on-black grid reveal](screenshots/nexus_signature.png) | ![Mechanical Core — cinematic CoreXY macro shots](screenshots/mechanical_core.png) | ![System Init — green terminal boot sequence](screenshots/system_init.png) |
+| *Clean white-on-black grid reveal* | *Cinematic CoreXY macro shots* | *Green-on-black terminal sequence* |
+
+### Startup Video Selector in Nexus Screen
+
+The **Settings → Startup Video** screen (added to Nexus Screen via the included integration patch) lets
+you browse, preview, and switch packs without touching the terminal.
+
+![Nexus Screen Startup Video selector — pack tiles with preview thumbnails](screenshots/startup_video_selector.png)
 
 ---
 
 ## Features
 
+- **Optional add-on for Nexus Screen** — installs alongside Nexus Screen without modifying it
 - **Three built-in packs** — Nexus Signature, Mechanical Core, System Initialization
 - **Custom packs** — drop in your own `intro.mp4` and `loop.mp4`
 - **Adaptive display scaling** — auto-detects framebuffer resolution and pixel format
@@ -166,4 +185,4 @@ Nexus Video is released under the [GNU General Public License v3.0](LICENSE).
 
 ## Related
 
-- **[Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen)** — the touchscreen UI this add-on extends
+- **[Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen)** — the touchscreen UI Nexus Video extends (required; install first)
