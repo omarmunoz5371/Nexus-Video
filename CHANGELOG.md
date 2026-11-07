@@ -28,7 +28,7 @@ Initial public beta of Nexus Video as a standalone add-on for Nexus Screen.
 
 **Built-in packs (`packs/builtin/`)**
 - `nexus_signature` — official Nexus Video theme: white-on-black grid reveal with the Nexus wordmark
-- `mechanical_core` — cinematic macro shots of Voron motion components
+- `mechanical_core` — cinematic macro shots of CoreXY motion components
 - `system_init` — green-on-black terminal boot sequence aesthetic
 
 **Installer (`deploy/install.sh`)**

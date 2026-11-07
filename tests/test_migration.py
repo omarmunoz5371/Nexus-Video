@@ -105,9 +105,11 @@ class TestResolvePack:
 
 class TestParseArgs:
     def test_default_config_path(self):
+        from pathlib import Path
         from player import parse
         a = parse([])
-        assert a.config == "/home/omar/nexus-video/config.json"
+        expected = str(Path.home() / "nexus-video" / "config.json")
+        assert a.config == expected
 
     def test_custom_config_path(self):
         from player import parse

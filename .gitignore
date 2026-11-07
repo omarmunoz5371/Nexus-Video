@@ -11,9 +11,8 @@ sources/
 # Voron pack: pending trademark review — not for public distribution.
 packs/builtin/voron/
 
-# User's personal custom packs (packs/custom/my_test_pack etc.).
-# Test fixture packs (corrupt_intro, missing_intro, missing_loop, no_manifest)
-# are intentionally tracked.
+# User's personal custom packs are not tracked.
+# Test fixture packs are in tests/fixtures/ — not in packs/custom/.
 packs/custom/my_test_pack/
 
 # ── Private dev copy of Nexus Screen ─────────────────────────────────────────

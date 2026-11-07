@@ -512,7 +512,7 @@ class TestPackPageScroll:
 
 
 # ---------------------------------------------------------------------------
-# Custom pack discovery — micron_original (production-path tests)
+# Production install sanity (skipped when ~/nexus-video not present)
 # ---------------------------------------------------------------------------
 
 _PROD_PACKS = Path.home() / "nexus-video" / "packs"
@@ -522,41 +522,31 @@ _PROD_INSTALL_EXISTS = (_PROD_PACKS / "builtin").exists()
 
 @pytest.mark.skipif(not _PROD_INSTALL_EXISTS,
                     reason="production ~/nexus-video/ not present on this machine")
-class TestCustomPackDiscovery:
-    def test_micron_original_discoverable(self):
-        """micron_original must appear in the production pack listing."""
+class TestProductionInstallSanity:
+    def test_builtin_packs_discoverable(self):
+        """All three public built-in packs must be present in a production install."""
         from nexus_video.packs import discover_packs
         packs = discover_packs(
             builtin_dir=_PROD_PACKS / "builtin",
             custom_dir=_PROD_PACKS / "custom",
         )
         ids = [p.pack_id for p in packs]
-        assert "micron_original" in ids, \
-            f"micron_original not found; packs={ids}"
+        for expected in ("nexus_signature", "mechanical_core", "system_init"):
+            assert expected in ids, f"{expected} not found in production packs={ids}"
 
-    def test_micron_original_has_correct_name(self):
-        from nexus_video.packs import discover_packs
-        packs = discover_packs(
-            builtin_dir=_PROD_PACKS / "builtin",
-            custom_dir=_PROD_PACKS / "custom",
-        )
-        pack = next((p for p in packs if p.pack_id == "micron_original"), None)
-        assert pack is not None
-        assert "Voron Micron" in pack.name
-
-    def test_micron_original_build_is_ready(self):
+    def test_nexus_signature_build_is_ready(self):
         from nexus_video.settings_bridge import build_is_ready
-        assert build_is_ready(_PROD_BUILD, "micron_original"), \
-            "micron_original build output is incomplete"
+        assert build_is_ready(_PROD_BUILD, "nexus_signature"), \
+            "nexus_signature build output is incomplete in production install"
 
-    def test_all_five_packs_discoverable(self):
+    def test_at_least_three_packs_discoverable(self):
         from nexus_video.packs import discover_packs
         packs = discover_packs(
             builtin_dir=_PROD_PACKS / "builtin",
             custom_dir=_PROD_PACKS / "custom",
         )
-        assert len(packs) >= 5, \
-            f"Expected ≥5 packs, got {len(packs)}: {[p.pack_id for p in packs]}"
+        assert len(packs) >= 3, \
+            f"Expected ≥3 packs, got {len(packs)}: {[p.pack_id for p in packs]}"
 
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@
 #
 # SAFETY:
 #   - Checks player.py and config.json exist before touching any service
-#   - Makes a timestamped backup in /home/omar/.nexus-video-backup/
+#   - Makes a timestamped backup in ~/.nexus-video-backup/
 #   - Rolls back automatically on any error (set -e)
 #   - Never touches printer.cfg, Moonraker, Klipper, Beacon or Leviathan
 #   - Does NOT reboot — changes take effect on next boot
@@ -15,9 +15,11 @@
 #   sudo ./migrate.sh [--dry-run]
 set -euo pipefail
 
-INSTALL_DIR="/home/omar/nexus-video"
+TARGET_USER="${SUDO_USER:-$(id -un)}"
+HOME_DIR="$(eval echo "~${TARGET_USER}")"
+INSTALL_DIR="${HOME_DIR}/nexus-video"
 DEPLOY_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BACKUP_ROOT="/home/omar/.nexus-video-backup"
+BACKUP_ROOT="${HOME_DIR}/.nexus-video-backup"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"
 BACKUP_DIR="${BACKUP_ROOT}/${TIMESTAMP}"
 DRY_RUN=false
@@ -63,7 +65,7 @@ log "Preflight checks..."
   die "nexus-video.service not installed in /etc/systemd/system/ — run 'sudo deploy/install.sh --confirm' first"
 
 # Verify the Nexus Screen patch was applied (critical — the splash_pid fix must be live)
-NEXUS_SCREEN_DIR="/home/omar/nexus-screen"
+NEXUS_SCREEN_DIR="${HOME_DIR}/nexus-screen"
 PATCH_FILE="${DEPLOY_DIR}/nexus-screen-startup-video.patch"
 if [[ -f "${PATCH_FILE}" && -d "${NEXUS_SCREEN_DIR}" ]]; then
   if ! patch --dry-run -p1 -d "${NEXUS_SCREEN_DIR}" --reverse --silent < "${PATCH_FILE}" 2>/dev/null; then

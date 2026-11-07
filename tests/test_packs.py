@@ -321,8 +321,9 @@ class TestDiscoverPacks:
     def test_discovers_builtin_packs(self):
         packs = discover_packs(builtin_dir=BUILTIN_DIR, custom_dir=BUILTIN_DIR.parent / "custom")
         pack_ids = [p.pack_id for p in packs]
-        for expected_id in ("nexus_signature", "mechanical_core", "system_init", "voron"):
+        for expected_id in ("nexus_signature", "mechanical_core", "system_init"):
             assert expected_id in pack_ids
+        # voron pack is excluded from public distribution (pending trademark review)
 
     def test_discover_returns_empty_for_missing_dirs(self, tmp_path):
         packs = discover_packs(

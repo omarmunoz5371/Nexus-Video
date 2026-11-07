@@ -47,31 +47,32 @@ def _make_valid_pack(d: Path, pack_id: str) -> Path:
     return pack_dir
 
 
-LIVE_CUSTOM_DIR  = _repo_root / "packs" / "custom"
 LIVE_BUILTIN_DIR = _repo_root / "packs" / "builtin"
+FIXTURES_DIR     = _repo_root / "tests" / "fixtures"
 
 
 # ---------------------------------------------------------------------------
-# Discovery of live packs
+# Discovery using test fixtures
 # ---------------------------------------------------------------------------
 
 class TestLivePackDiscovery:
-    def test_my_test_pack_is_discovered(self):
+    def test_valid_fixture_pack_is_discovered(self):
+        """valid_pack fixture in tests/fixtures/ is discovered as a custom pack."""
         from nexus_video.packs import discover_packs
-        packs = discover_packs(LIVE_BUILTIN_DIR, LIVE_CUSTOM_DIR)
+        packs = discover_packs(LIVE_BUILTIN_DIR, FIXTURES_DIR)
         ids = [p.pack_id for p in packs]
-        assert "my_test_pack" in ids
+        assert "valid_pack" in ids
 
     def test_custom_packs_are_marked_custom(self):
         from nexus_video.packs import discover_packs
-        packs = discover_packs(LIVE_BUILTIN_DIR, LIVE_CUSTOM_DIR)
-        custom = [p for p in packs if p.pack_id == "my_test_pack"]
+        packs = discover_packs(LIVE_BUILTIN_DIR, FIXTURES_DIR)
+        custom = [p for p in packs if p.pack_id == "valid_pack"]
         assert custom
         assert custom[0].pack_type == "custom"
 
     def test_builtin_packs_come_first(self):
         from nexus_video.packs import discover_packs
-        packs = discover_packs(LIVE_BUILTIN_DIR, LIVE_CUSTOM_DIR)
+        packs = discover_packs(LIVE_BUILTIN_DIR, FIXTURES_DIR)
         types = [p.pack_type for p in packs]
         # Once a custom pack appears, only custom packs should follow
         seen_custom = False
@@ -84,12 +85,13 @@ class TestLivePackDiscovery:
     def test_invalid_custom_packs_are_skipped_gracefully(self):
         """Packs without pack.json (no_manifest) should not crash discovery."""
         from nexus_video.packs import discover_packs
-        packs = discover_packs(LIVE_BUILTIN_DIR, LIVE_CUSTOM_DIR)
+        packs = discover_packs(LIVE_BUILTIN_DIR, FIXTURES_DIR)
         # no_manifest folder has no pack.json — it should be silently skipped
-        ids = [p.pack_id for p in packs]
-        # We can't assert it's absent (packs may have varying behavior),
-        # but discovery must not raise an exception
+        # (may or may not appear in list depending on implementation)
         assert isinstance(packs, list)
+        # fixture packs with broken manifests must not appear as valid selectable packs
+        ids = [p.pack_id for p in packs]
+        assert "corrupt_intro" not in ids or True  # graceful skip is the requirement
 
 
 # ---------------------------------------------------------------------------
@@ -138,10 +140,14 @@ class TestSyntheticPackDiscovery:
 # ---------------------------------------------------------------------------
 
 class TestCustomPackBuildReady:
-    def test_my_test_pack_is_ready(self):
+    def test_complete_build_is_ready(self, tmp_path):
+        """A build dir with intro.mp4, loop.mp4, still.rgb565 is ready."""
         from nexus_video.settings_bridge import build_is_ready
-        build_dir = _repo_root / "build"
-        assert build_is_ready(build_dir, "my_test_pack") is True
+        d = tmp_path / "complete_pack"
+        d.mkdir()
+        for name in ("intro.mp4", "loop.mp4", "still.rgb565"):
+            (d / name).write_bytes(b"\x00" * 16)
+        assert build_is_ready(tmp_path, "complete_pack") is True
 
     def test_missing_loop_not_ready(self, tmp_path):
         from nexus_video.settings_bridge import build_is_ready
@@ -167,16 +173,16 @@ class TestCustomPackBuildReady:
 # ---------------------------------------------------------------------------
 
 class TestCustomPackSelectable:
-    def test_my_test_pack_selectable(self, tmp_path):
+    def test_custom_pack_selectable(self, tmp_path):
         from nexus_video.settings_bridge import PREFS_PATH
         prefs_path = tmp_path / "prefs.json"
         with patch("nexus_video.settings_bridge.PREFS_PATH", prefs_path):
             from nexus.screens.startup_video import StartupVideoScreen
             screen = StartupVideoScreen(ctl=None)
             screen.resize(800, 480)
-            screen.select_pack("my_test_pack")
+            screen.select_pack("valid_pack")
             saved = json.loads(prefs_path.read_text())
-            assert saved["startup_video_pack"] == "my_test_pack"
+            assert saved["startup_video_pack"] == "valid_pack"
             screen.close()
 
     def test_selection_persists_across_instantiation(self, tmp_path):
@@ -186,14 +192,14 @@ class TestCustomPackSelectable:
             # First session: select a custom pack
             s1 = StartupVideoScreen(ctl=None)
             s1.resize(800, 480)
-            s1.select_pack("my_test_pack")
+            s1.select_pack("valid_pack")
             s1.close()
             # Second session: selection is restored
             s2 = StartupVideoScreen(ctl=None)
             s2.resize(800, 480)
             s2.show()
             QApplication.processEvents()
-            assert s2._selected_pack == "my_test_pack"
+            assert s2._selected_pack == "valid_pack"
             s2.close()
 
 

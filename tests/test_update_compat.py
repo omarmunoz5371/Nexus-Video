@@ -53,11 +53,11 @@ class TestCustomPackLocation:
         assert not str(custom_dir).startswith(str(nexus_screen)), \
             "Custom packs directory is inside nexus-screen — git updates would delete them"
 
-    def test_my_test_pack_outside_nexus_screen(self):
+    def test_fixture_packs_outside_nexus_screen(self):
         nexus_screen = Path.home() / "nexus-screen"
-        my_pack = _repo_root / "packs" / "custom" / "my_test_pack"
-        assert my_pack.exists()
-        assert not str(my_pack).startswith(str(nexus_screen))
+        fixtures_dir = _repo_root / "tests" / "fixtures"
+        assert fixtures_dir.exists()
+        assert not str(fixtures_dir).startswith(str(nexus_screen))
 
 
 # ---------------------------------------------------------------------------

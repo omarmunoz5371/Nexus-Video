@@ -1,0 +1,13 @@
+{
+  "id":               "valid_pack",
+  "name":             "Valid Pack",
+  "type":             "custom",
+  "version":          "1.0.0",
+  "description":      "Minimal valid pack used as a test fixture.",
+  "intro_duration":   10,
+  "loop_duration":    5,
+  "scale_mode":       "fit",
+  "trademark_notice": null,
+  "author":           null,
+  "distribution":     "test_fixture"
+}
