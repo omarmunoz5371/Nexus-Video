@@ -6,8 +6,8 @@ Nexus Video is an **optional add-on** for Nexus Screen. It replaces the default 
 with animated startup video packs. It plays a 10-second intro once at boot, then loops ambient
 video while the printer connects — with no desktop environment required.
 
-**Status: Public Beta**  
-Requires [Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen) v0.2.0-beta.4 or later.
+**Status: Public Beta — v0.1.0-beta.1**  
+Requires [Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen) v0.2.0-beta.5 or later.
 
 ---
 
@@ -47,7 +47,7 @@ you browse, preview, and switch packs without touching the terminal.
 
 | Requirement | Minimum |
 |---|---|
-| **Nexus Screen** | v0.2.0-beta.4 or later (must be installed first) |
+| **Nexus Screen** | v0.2.0-beta.5 or later (must be installed first) |
 | **SBC** | Raspberry Pi 4 or BigTreeTech CB1, 64-bit (aarch64) |
 | **OS** | Debian 12 (Bookworm) or Raspberry Pi OS (Bookworm), 64-bit |
 | **RAM** | 1 GB (2 GB recommended) |
@@ -61,6 +61,12 @@ you browse, preview, and switch packs without touching the terminal.
 
 ## Installation
 
+**Via Nexus Screen bootstrap (recommended — installs Nexus Screen and Nexus Video together):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/omarmunoz5371/Nexus-Screen/main/deploy/bootstrap.sh | bash -s -- --with-video
+```
+
+**Standalone — add to an existing Nexus Screen installation:**
 ```bash
 # 1. Clone the repository
 git clone https://github.com/omarmunoz5371/Nexus-Video.git ~/nexus-video
@@ -68,17 +74,20 @@ git clone https://github.com/omarmunoz5371/Nexus-Video.git ~/nexus-video
 # 2. Run the hardware preflight check (no changes made)
 bash ~/nexus-video/deploy/preflight.sh
 
-# 3. Install
-bash ~/nexus-video/deploy/install.sh
+# 3. Install (requires sudo)
+sudo bash ~/nexus-video/deploy/public-install.sh
 ```
 
 The installer:
 1. Runs a hardware preflight check; stops with "INSTALLATION BLOCKED" if requirements are not met — no system changes are made.
-2. Installs Nexus Video files to `~/nexus-video/`.
+2. Converts the built-in video packs from source MP4s (requires FFmpeg).
 3. Configures and enables `nexus-video.service`.
-4. Disables `nexus-splash.service` (Nexus Screen's built-in static splash).
+4. Disables `nexus-splash.service` (Nexus Screen's built-in static splash) — changes take effect at next boot.
 
 **On update**, your `config.json` (pack selection) and `packs/custom/` (custom packs) are preserved.
+
+> **Note:** `install.sh` in the same directory is the development installer and requires
+> pre-built artifacts. Use `public-install.sh` for the standard user workflow.
 
 ---
 
@@ -140,14 +149,46 @@ Custom packs live in `packs/custom/` and are never modified by updates.
 
 ---
 
-## Integrating with Nexus Screen
+## Nexus Screen Integration
 
-Nexus Video adds a **Startup Video** screen to the Nexus Screen Settings section.
-Apply the integration patch to your Nexus Screen installation:
+The **Settings → Startup Video** screen is included in Nexus Screen v0.2.0-beta.5 and later.
+No manual patch is needed when installing via the bootstrap script or when Nexus Screen is
+already at v0.2.0-beta.5.
 
+If your Nexus Screen installation predates v0.2.0-beta.5, update it first:
 ```bash
-# From your nexus-screen directory
-git apply ~/nexus-video/deploy/nexus-screen-startup-video.patch
+cd ~/nexus-screen && git pull
+sudo systemctl restart nexus-screen
+```
+
+---
+
+## Hardware Compatibility
+
+| Hardware | Status | Notes |
+|---|---|---|
+| Raspberry Pi 4 (2 GB), 800×480 RGB565 DSI, Debian 12 | **PHYSICALLY TESTED** | Reference configuration |
+| Raspberry Pi 4 (4 GB), Voron 2.4, 800×480 BGRA8888, Debian 12 | **PHYSICALLY TESTED** | 32-bit framebuffer path |
+| BigTreeTech CB1, 480×320 RGB565 | SIMULATED / CODE-VALIDATED | Nexus Screen tested; NV convert step not run on CB1 |
+| Raspberry Pi 3, Pi 5, Pi Zero 2 W | NOT TESTED | Community reports welcome |
+| HDMI / SPI displays | NOT TESTED | `/dev/fb0` must be accessible |
+| Debian 11 Bullseye | **NOT SUPPORTED** | Blocked by installer |
+
+**Status:** PHYSICALLY TESTED = installed and confirmed on real hardware.
+SIMULATED / CODE-VALIDATED = logic verified; convert step not run on that hardware.
+NOT TESTED = unknown; community reports welcome.
+
+---
+
+## Bug Reports
+
+[Open a Bug Report](https://github.com/omarmunoz5371/Nexus-Video/issues/new?template=bug_report.yml)
+
+Before filing: collect logs with:
+```bash
+journalctl -u nexus-video -b --no-pager -n 50
+systemctl status nexus-video
+bash ~/nexus-video/deploy/preflight.sh
 ```
 
 ---

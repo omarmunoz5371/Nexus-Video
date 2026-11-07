@@ -1,0 +1,87 @@
+name: Bug Report
+description: Report a problem with Nexus Video
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug. The more detail you provide, the faster it can be investigated.
+
+        **Nexus Video requires Nexus Screen.** If Nexus Screen itself is not working, please report
+        the issue in the [Nexus Screen repository](https://github.com/omarmunoz5371/Nexus-Screen/issues) first.
+
+        **Collect logs before submitting:**
+        ```bash
+        # Nexus Video service logs
+        journalctl -u nexus-video -b --no-pager -n 50
+
+        # Service status
+        systemctl status nexus-video
+        ```
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: A clear description of the problem.
+      placeholder: "The startup video plays a black screen instead of the selected pack."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Step-by-step instructions to reproduce the problem.
+      placeholder: |
+        1. Reboot the printer
+        2. Observe the display during startup
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Your hardware configuration.
+      placeholder: |
+        - Raspberry Pi model: Pi 4 2GB
+        - Operating system: Raspberry Pi OS Bookworm 64-bit
+        - Display: 7-inch 800×480 DSI touchscreen
+        - bits_per_pixel (cat /sys/class/graphics/fb0/bits_per_pixel): 16
+        - Klipper version: v0.12.0
+        - Moonraker version: v0.9.0
+        - Nexus Screen version: v0.2.0-beta.5
+        - Nexus Video version: v0.1.0-beta.1
+        - Selected pack: nexus_signature
+    validations:
+      required: true
+
+  - type: textarea
+    id: journal
+    attributes:
+      label: Service journal
+      description: Output of `journalctl -u nexus-video -b --no-pager -n 50`
+      render: shell
+
+  - type: textarea
+    id: preflight
+    attributes:
+      label: Preflight output (if relevant)
+      description: Output of `bash ~/nexus-video/deploy/preflight.sh`
+      render: shell
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Anything else that might be relevant.

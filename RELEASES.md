@@ -62,7 +62,7 @@ Installing Nexus Video is entirely optional. Nexus Screen functions normally wit
 
 | Requirement | Minimum |
 |---|---|
-| Nexus Screen | v0.2.0-beta.5 |
+| Nexus Screen | v0.2.0-beta.5 or later |
 | SBC | Raspberry Pi 4 or BigTreeTech CB1 (64-bit, aarch64) |
 | OS | Debian 12 (Bookworm), 64-bit |
 | RAM | 1 GB (2 GB recommended) |
@@ -94,7 +94,7 @@ curl -fsSL https://raw.githubusercontent.com/omarmunoz5371/Nexus-Screen/main/dep
 **Standalone — add to existing Nexus Screen:**
 ```bash
 git clone https://github.com/omarmunoz5371/Nexus-Video.git ~/nexus-video
-bash ~/nexus-video/deploy/install.sh
+sudo bash ~/nexus-video/deploy/public-install.sh
 ```
 
 ---

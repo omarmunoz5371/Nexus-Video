@@ -1,0 +1,70 @@
+name: Hardware Compatibility Report
+description: Report whether Nexus Video works (or does not work) on hardware not yet documented
+labels: ["hardware-compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping expand hardware compatibility knowledge.
+
+        This form is for reporting a hardware configuration that is not yet documented,
+        or for updating a "NOT TESTED" entry with a confirmed result.
+
+        **Note:** Nexus Video requires Nexus Screen. Please confirm Nexus Screen is working
+        on the same hardware before testing Nexus Video.
+
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      description: Did Nexus Video install and play correctly on this hardware?
+      options:
+        - "✓ Working — startup video plays correctly"
+        - "✗ Failed — installation blocked or video does not play"
+        - "⚠ Partial — installed but video quality or timing issues"
+    validations:
+      required: true
+
+  - type: textarea
+    id: hardware
+    attributes:
+      label: Hardware
+      description: Your exact hardware configuration.
+      placeholder: |
+        - SBC: Raspberry Pi 4 (2 GB RAM)
+        - Operating system: Raspberry Pi OS Bookworm 64-bit (aarch64)
+        - Display: 7-inch 800×480 DSI touchscreen
+        - bits_per_pixel: 16
+        - Nexus Screen version: v0.2.0-beta.5
+        - Nexus Video version: v0.1.0-beta.1
+        - Pack tested: nexus_signature
+    validations:
+      required: true
+
+  - type: textarea
+    id: framebuffer_info
+    attributes:
+      label: Framebuffer info
+      description: Output of the following commands.
+      value: |
+        ```
+        # cat /sys/class/graphics/fb0/bits_per_pixel
+        # cat /sys/class/graphics/fb0/virtual_size
+        # uname -m
+        # cat /etc/os-release
+        ```
+      render: shell
+
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Describe what worked, what failed, and any relevant error output.
+    validations:
+      required: true
+
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context
+      description: Logs, screenshots, or anything else relevant.
