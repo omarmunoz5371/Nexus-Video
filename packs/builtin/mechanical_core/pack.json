@@ -1,0 +1,14 @@
+{
+  "id":               "mechanical_core",
+  "name":             "Mechanical Core",
+  "type":             "builtin",
+  "version":          "1.0.0",
+  "description":      "Cinematic macro shots of Voron motion components: linear rails, belts, and gantry moving to position.",
+  "intro_duration":   10,
+  "loop_duration":    5,
+  "scale_mode":       "fill",
+  "trademark_notice": null,
+  "author":           null,
+  "distribution":     "included",
+  "tags":             ["cinematic", "mechanical", "dark"]
+}

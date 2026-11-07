@@ -1,0 +1,14 @@
+{
+  "id":               "system_init",
+  "name":             "System Initialization",
+  "type":             "builtin",
+  "version":          "1.0.0",
+  "description":      "Green-on-black terminal boot sequence aesthetic. Animated initialization status lines fill the screen before the main menu appears.",
+  "intro_duration":   10,
+  "loop_duration":    5,
+  "scale_mode":       "fit",
+  "trademark_notice": null,
+  "author":           null,
+  "distribution":     "included",
+  "tags":             ["terminal", "tech", "green", "dark"]
+}

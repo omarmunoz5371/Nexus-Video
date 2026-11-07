@@ -1,0 +1,7 @@
+{
+  "id": "missing_loop",
+  "name": "Missing Loop Test",
+  "type": "custom",
+  "schema_version": "1.0",
+  "meta": {"description": "Test pack with no loop.mp4"}
+}

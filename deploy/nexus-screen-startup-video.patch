@@ -1,0 +1,1213 @@
+diff --git a/nexus/app.py b/nexus/app.py
+index 128550f..fbd22db 100644
+--- a/nexus/app.py
++++ b/nexus/app.py
+@@ -29,6 +29,7 @@ from nexus.screens.macros import MacrosScreen
+ from nexus.screens.print_files import FilePreviewScreen, PrintCompleteScreen, PrintFilesScreen, PrintPage
+ from nexus.screens.settings import (AboutScreen, CameraSettings, FirmwareScreen, NetworkScreen, PrinterSettings,
+                                     ScreenSettings, SettingsPage)
++from nexus.screens.startup_video import StartupVideoScreen
+ from nexus.screens.timelapse import TimelapseScreen
+ from nexus.screens.tools import ConsoleScreen, LogsScreen, SystemScreen
+ from nexus.screens.webcam import WebcamScreen
+@@ -149,6 +150,7 @@ class MainWindow(QMainWindow):
+             "console": ConsoleScreen(self), "logs": LogsScreen(self), "system": SystemScreen(self),
+             "screen": ScreenSettings(self), "printer": PrinterSettings(self), "network": NetworkScreen(self),
+             "camera": CameraSettings(self), "firmware": FirmwareScreen(self), "about": AboutScreen(self),
++            "startup_video": StartupVideoScreen(self),
+             "filament": self.filament_screen, "profiles": self.profiles_screen,
+             "boxturtle": self.bt_dashboard, "stealthchanger": self.sc_dashboard,
+             "bt_controls": self.bt_controls, "sc_controls": self.sc_controls,
+diff --git a/nexus/screens/settings.py b/nexus/screens/settings.py
+index 6848a91..1a481f2 100644
+--- a/nexus/screens/settings.py
++++ b/nexus/screens/settings.py
+@@ -22,12 +22,13 @@ SETTINGS = [("screen", "Screen", "Brightness, screen timeout", icons.camera),
+             ("network", "Network", "Wi-Fi, Ethernet", icons.refresh),
+             ("camera", "Camera", "Webcam status", icons.camera),
+             ("timelapse", "Timelapse", "Mode, interval, output", icons.clock),
++            ("startup_video", "Startup Video", "Boot animation pack", icons.play),
+             ("system", "System", "Info, services, power", icons.gear),
+-            ("firmware", "Firmware", "Versions, restarts, updates", icons.load),
+-            ("about", "About", "Version and credits", icons.check)]
++            ("firmware", "Firmware", "Versions, restarts, updates", icons.load)]
+ SUPPORT = [("tools", "Tools", "Console, logs, utilities", icons.terminal),
+            ("maintenance", "Maintenance", "Upkeep and tests", icons.wrench),
+-           ("help", "Help", "Documentation links", icons.warning)]
++           ("help", "Help", "Documentation links", icons.warning),
++           ("about", "About", "Version and credits", icons.check)]
+ 
+ 
+ class SettingsPage(QWidget):
+@@ -43,7 +44,7 @@ class SettingsPage(QWidget):
+             t.clicked.connect(lambda _=False, k=key: self.open_screen.emit(k))
+             self.tiles[key] = t
+         place_buttons([self.tiles[k] for k, *_ in SETTINGS], QRectF(cx(8), sy(82), cx(704), sy(180)), 4, 0)
+-        place_buttons([self.tiles[k] for k, *_ in SUPPORT], QRectF(cx(8), sy(300), cx(528), sy(90)), 3, 0)
++        place_buttons([self.tiles[k] for k, *_ in SUPPORT], QRectF(cx(8), sy(300), cx(704), sy(90)), 4, 0)
+ 
+     def set_data(self, data):
+         pass
+diff --git a/tests/_check_screen_bounds.py b/tests/_check_screen_bounds.py
+index 10fecd0..dac6df6 100644
+--- a/tests/_check_screen_bounds.py
++++ b/tests/_check_screen_bounds.py
+@@ -54,19 +54,20 @@ src.start()
+ wait(400)
+ 
+ SCREENS = [
+-    ("home",        lambda w: w._on_section("home")),
+-    ("settings",    lambda w: w._on_section("settings")),
+-    ("screen",      lambda w: w.open("screen")),
+-    ("printer",     lambda w: w.open("printer")),
+-    ("network",     lambda w: w.open("network")),
+-    ("system",      lambda w: w.open("system")),
+-    ("firmware",    lambda w: w.open("firmware")),
+-    ("about",       lambda w: w.open("about")),
+-    ("tools",       lambda w: w.open("tools")),
+-    ("control",     lambda w: w._on_section("control")),
+-    ("temperature", lambda w: w.push(w.temperature_screen)),
+-    ("filament",    lambda w: w._on_section("filament")),
+-    ("print",       lambda w: w._on_section("print")),
++    ("home",          lambda w: w._on_section("home")),
++    ("settings",      lambda w: w._on_section("settings")),
++    ("screen",        lambda w: w.open("screen")),
++    ("printer",       lambda w: w.open("printer")),
++    ("network",       lambda w: w.open("network")),
++    ("system",        lambda w: w.open("system")),
++    ("firmware",      lambda w: w.open("firmware")),
++    ("about",         lambda w: w.open("about")),
++    ("startup_video", lambda w: w.open("startup_video")),
++    ("tools",         lambda w: w.open("tools")),
++    ("control",       lambda w: w._on_section("control")),
++    ("temperature",   lambda w: w.push(w.temperature_screen)),
++    ("filament",      lambda w: w._on_section("filament")),
++    ("print",         lambda w: w._on_section("print")),
+ ]
+ 
+ for label, navigate in SCREENS:
+diff --git a/nexus/screens/startup_video.py b/nexus/screens/startup_video.py
+new file mode 100644
+index 0000000..b6cfa28
+--- /dev/null
++++ b/nexus/screens/startup_video.py
+@@ -0,0 +1,850 @@
++"""Startup Video settings screen for Nexus Screen.
++
++Allows users to select a boot animation pack (intro + loop video) and scale mode from
++the Nexus Screen Settings menu. Changes are saved when the user taps Apply in the
++popup that opens on tile tap.
++
++This screen is intentionally read-only with respect to Nexus Video's media files:
++it only reads already-converted build output and writes config/preferences.
++
++Nexus Video is an optional dependency. When not installed the screen appears in
++Settings and displays an installation notice rather than pack tiles.
++"""
++import sys
++from pathlib import Path
++from typing import Optional
++
++from PyQt6.QtCore import QEvent, QRect, QRectF, Qt
++from PyQt6.QtGui import QColor, QFont, QFontMetricsF, QImage, QPainter, QPen, QPixmap
++from PyQt6.QtWidgets import QWidget
++
++from nexus import theme
++from nexus.config import sx, sy, smin, SCREEN_W, SCREEN_H
++from nexus.screens.addon_common import place_buttons
++from nexus.widgets import icons
++from nexus.widgets.buttons import SmallButton
++from nexus.widgets.panels import SubScreen, Panel, text_row
++
++# Locate nexus_video: production install at ~/nexus-video/, dev fallback 4 levels up.
++import importlib.util as _imu
++if _imu.find_spec("nexus_video") is None:
++    _prod = Path.home() / "nexus-video"
++    _dev  = Path(__file__).resolve().parent.parent.parent.parent  # nexus-video-dev/
++    _nv   = _prod if (_prod / "nexus_video").exists() else _dev
++    if str(_nv) not in sys.path:
++        sys.path.insert(0, str(_nv))
++del _imu
++
++try:
++    from nexus_video.settings_bridge import (
++        VALID_SCALES, DEFAULT_PACK, DEFAULT_SCALE,
++        build_is_ready, get_selection, set_selection,
++    )
++    from nexus_video.packs import discover_packs, PackInfo
++    _BRIDGE_OK = True
++except ImportError:
++    _BRIDGE_OK = False
++    VALID_SCALES  = ("fit", "fill", "stretch")
++    DEFAULT_PACK  = "nexus_signature"
++    DEFAULT_SCALE = "fit"
++
++
++# ── adaptive layout constants ─────────────────────────────────────────────────
++# All values are in the 800×480 design space; sx()/sy() scale them to the actual
++# display at module import time.  On an 800×480 display they are identical to the
++# raw integers.
++_PACK_COLS   = 2
++_THUMB_W     = sx(192)
++_THUMB_H     = sy(108)
++_TILE_W      = sx(272)
++_TILE_H      = sy(148)
++_TILE_GAP    = smin(8)
++_CONTENT_Y   = sy(SubScreen.CONTENT_Y)   # sy(58)
++_SCROLL_W    = smin(8)
++_BTN_STRIP_H = sy(8)
++
++# SubScreen widget height (fullscreen=True ⇒ stack below the FULL_TOPBAR_H of sy(36))
++_WIDGET_H    = SCREEN_H - sy(36)
++_PAGE_H      = _WIDGET_H - _CONTENT_Y - sy(4)
++_TAB_H       = _WIDGET_H - _CONTENT_Y - sy(6)
++
++
++# ── derive runtime paths from the loaded nexus_video module ──────────────────
++def _compute_nv_install() -> Path:
++    """Return the root of whichever nexus-video installation nexus_video loaded from."""
++    if _BRIDGE_OK:
++        import nexus_video as _nv
++        return Path(_nv.__file__).resolve().parent.parent  # nexus_video/ → nexus-video/
++    return Path.home() / "nexus-video"
++
++
++_NV_INSTALL = _compute_nv_install()
++
++
++def _build_dir() -> Path:
++    return _NV_INSTALL / "build"
++
++
++def _packs_root() -> Path:
++    return _NV_INSTALL / "packs"
++
++
++# ── thumbnail loading ─────────────────────────────────────────────────────────
++
++def load_still_thumbnail(still_path: Path, thumb_w: int, thumb_h: int) -> Optional[QPixmap]:
++    """Load a raw RGB565 still (always 800×480) and return a scaled QPixmap."""
++    try:
++        data = still_path.read_bytes()
++        if len(data) != 800 * 480 * 2:
++            return None
++        raw_bytes = bytes(data)
++        img = QImage(raw_bytes, 800, 480, 800 * 2, QImage.Format.Format_RGB16)
++        px = QPixmap.fromImage(img)
++        return px.scaled(thumb_w, thumb_h,
++                         Qt.AspectRatioMode.KeepAspectRatio,
++                         Qt.TransformationMode.SmoothTransformation)
++    except Exception:
++        return None
++
++
++# ── pack tile widget ──────────────────────────────────────────────────────────
++
++class PackTile(QWidget):
++    """Single selectable pack tile with thumbnail, name and status badge."""
++
++    def __init__(self, pack_id: str, name: str, description: str,
++                 thumb: Optional[QPixmap], ready: bool,
++                 trademark_pending: bool = False, parent=None):
++        super().__init__(parent)
++        self.pack_id          = pack_id
++        self.name             = name
++        self.desc             = description
++        self.thumb            = thumb
++        self.ready            = ready
++        self.trademark_pending = trademark_pending
++        self.selected         = False
++        self.setCursor(Qt.CursorShape.PointingHandCursor)
++
++    def set_selected(self, on: bool) -> None:
++        if on != self.selected:
++            self.selected = on
++            self.update()
++
++    def mousePressEvent(self, event):
++        # Accept so the widget gets the implicit mouse grab; tap fires on release
++        # via PackPage's event filter.
++        event.accept()
++
++    def paintEvent(self, _):
++        p = QPainter(self)
++        p.setRenderHint(QPainter.RenderHint.Antialiasing)
++        r = QRectF(0, 0, self.width(), self.height())
++
++        # border / background
++        border_col = theme.RED if self.selected else theme.BORDER
++        p.setPen(Qt.PenStyle.NoPen)
++        p.setBrush(QColor(theme.TILE))
++        path_r = r.adjusted(1, 1, -1, -1)
++        p.drawRoundedRect(path_r, 6, 6)
++        p.setPen(QPen(QColor(border_col), 2 if self.selected else 1))
++        p.setBrush(Qt.BrushStyle.NoBrush)
++        p.drawRoundedRect(path_r, 6, 6)
++
++        # thumbnail or placeholder
++        thumb_x = (self.width() - _THUMB_W) // 2
++        thumb_y = smin(10)
++        thumb_r = QRectF(thumb_x, thumb_y, _THUMB_W, _THUMB_H)
++        if self.thumb:
++            p.drawPixmap(thumb_r.toRect(), self.thumb)
++        else:
++            p.setBrush(QColor(30, 32, 36))
++            p.setPen(Qt.PenStyle.NoPen)
++            p.drawRoundedRect(thumb_r, 4, 4)
++            p.setFont(theme.font(theme.CAPTION))
++            p.setPen(theme.MUTED)
++            p.drawText(thumb_r, Qt.AlignmentFlag.AlignCenter, "No preview")
++
++        # pack name
++        name_y = thumb_y + _THUMB_H + smin(6)
++        p.setFont(theme.font(theme.BUTTON, QFont.Weight.DemiBold))
++        p.setPen(theme.FG if self.ready else theme.DIM)
++        fm = QFontMetricsF(p.font())
++        p.drawText(QRectF(smin(8), name_y, self.width() - smin(16), smin(20)),
++                   Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter,
++                   fm.elidedText(self.name, Qt.TextElideMode.ElideRight, self.width() - smin(16)))
++
++        # status badge
++        badge_y = name_y + smin(22)
++        badge_x = smin(8)
++        if not self.ready:
++            self._badge(p, badge_x, badge_y, "NOT BUILT", theme.AMBER)
++        elif self.trademark_pending:
++            self._badge(p, badge_x, badge_y, "PRIVATE", theme.DIM)
++        elif self.selected:
++            self._badge(p, badge_x, badge_y, "ACTIVE", theme.GREEN)
++
++        p.end()
++
++    @staticmethod
++    def _badge(p: QPainter, x: float, y: float, label: str, colour) -> None:
++        p.setFont(theme.font(theme.SMALL, QFont.Weight.Bold, 0.6))
++        fm = QFontMetricsF(p.font())
++        w = fm.horizontalAdvance(label) + smin(10)
++        h = smin(14)
++        p.setPen(Qt.PenStyle.NoPen)
++        p.setBrush(QColor(colour).darker(140))
++        p.drawRoundedRect(QRectF(x, y, w, h), 3, 3)
++        p.setPen(QColor(colour))
++        p.drawText(QRectF(x, y, w, h), Qt.AlignmentFlag.AlignCenter, label)
++
++
++# ── pack page ─────────────────────────────────────────────────────────────────
++
++class PackPage(QWidget):
++    """The 'Video Pack' tab content: scrollable grid of pack tiles.
++
++    Touch/mouse drag scrolls the tile grid vertically. A tap on a tile (< 10px
++    movement) opens the Apply/Preview/Cancel popup. A thin scrollbar strip on the
++    right indicates scroll position.
++    """
++
++    def __init__(self, screen: "StartupVideoScreen", parent=None):
++        super().__init__(parent)
++        self._screen = screen
++        self.tiles: dict[str, PackTile] = {}
++
++        # scroll state
++        self._scroll_y: float          = 0.0
++        self._press_global_y: Optional[float] = None
++        self._press_scroll_y: float    = 0.0
++        self._press_tile: Optional[PackTile] = None
++
++        # container widget: holds all tiles and moves for scroll
++        self._container = QWidget(self)
++        self._container.show()
++        self._container.installEventFilter(self)
++
++    # ── scroll geometry helpers ───────────────────────────────────────────────
++
++    def _content_height(self) -> int:
++        n = len(self.tiles)
++        if n == 0:
++            return 0
++        rows = (n + _PACK_COLS - 1) // _PACK_COLS
++        return rows * _TILE_H + (rows - 1) * _TILE_GAP
++
++    def _visible_h(self) -> int:
++        return max(1, self.height() - _BTN_STRIP_H - smin(8))
++
++    def _max_scroll(self) -> int:
++        return max(0, self._content_height() - self._visible_h())
++
++    def _clamp_scroll(self) -> None:
++        self._scroll_y = max(0.0, min(float(self._max_scroll()), self._scroll_y))
++
++    def _reposition_container(self) -> None:
++        self._clamp_scroll()
++        cont_h = max(self._visible_h(), self._content_height())
++        cont_w = max(1, self.width() - _SCROLL_W)
++        self._container.setGeometry(0, int(-self._scroll_y), cont_w, cont_h)
++        self.update()
++
++    # ── tile management ───────────────────────────────────────────────────────
++
++    def on_pack_tapped(self, pack_id: str) -> None:
++        self._screen.show_pack_popup(pack_id)
++
++    def rebuild(self, packs: list, selected_pack: str, build_dir: Path) -> None:
++        for t in self.tiles.values():
++            t.deleteLater()
++        self.tiles.clear()
++        self._scroll_y = 0.0
++
++        for info in packs:
++            pid       = info.pack_id
++            name      = info.name
++            desc      = info.meta.get("description", "")
++            trademark = info.meta.get("distribution") == "pending_trademark_review"
++            ready     = build_is_ready(build_dir, pid) if _BRIDGE_OK else False
++            still_path = build_dir / pid / "still.rgb565"
++            thumb = load_still_thumbnail(still_path, _THUMB_W, _THUMB_H) if still_path.exists() else None
++            tile = PackTile(pid, name, desc, thumb, ready, trademark, self._container)
++            tile.set_selected(pid == selected_pack)
++            tile.installEventFilter(self)
++            self.tiles[pid] = tile
++
++        self._layout()
++
++    def _layout(self) -> None:
++        tiles = list(self.tiles.values())
++        cont_w = max(1, self.width() - _SCROLL_W)
++        total_w = _PACK_COLS * _TILE_W + (_PACK_COLS - 1) * _TILE_GAP
++        start_x = max(0, (cont_w - total_w) // 2)
++        for i, t in enumerate(tiles):
++            col = i % _PACK_COLS
++            row = i // _PACK_COLS
++            x = start_x + col * (_TILE_W + _TILE_GAP)
++            y = row * (_TILE_H + _TILE_GAP)
++            t.setGeometry(x, y, _TILE_W, _TILE_H)
++            t.show()
++        self._reposition_container()
++
++    def resizeEvent(self, e):
++        self._layout()
++        super().resizeEvent(e)
++
++    def set_selected(self, pack_id: str) -> None:
++        for pid, tile in self.tiles.items():
++            tile.set_selected(pid == pack_id)
++
++    # ── touch/mouse scroll event filter ──────────────────────────────────────
++
++    def eventFilter(self, obj, event) -> bool:
++        is_tile = isinstance(obj, PackTile)
++        is_cont = obj is self._container
++        if not (is_tile or is_cont):
++            return False
++
++        t = event.type()
++
++        if t == QEvent.Type.MouseButtonPress:
++            self._press_global_y = event.globalPosition().y()
++            self._press_scroll_y = self._scroll_y
++            self._press_tile = obj if is_tile else None
++            return False
++
++        if t == QEvent.Type.MouseMove:
++            if self._press_global_y is not None:
++                dy = event.globalPosition().y() - self._press_global_y
++                if abs(dy) > 10:
++                    self._scroll_y = max(0.0, min(
++                        float(self._max_scroll()),
++                        self._press_scroll_y - dy,
++                    ))
++                    self._reposition_container()
++                    return True
++            return False
++
++        if t == QEvent.Type.MouseButtonRelease:
++            if self._press_global_y is not None:
++                dy = event.globalPosition().y() - self._press_global_y
++                if abs(dy) <= 10 and is_tile:
++                    self.on_pack_tapped(obj.pack_id)
++            self._press_global_y = None
++            self._press_tile = None
++            return True
++
++        return False
++
++    # ── scroll indicator paint ────────────────────────────────────────────────
++
++    def paintEvent(self, _):
++        p = QPainter(self)
++        p.setRenderHint(QPainter.RenderHint.Antialiasing)
++
++        # "No packs" notice when nexus_video is not installed
++        if not self.tiles:
++            p.setFont(theme.font(theme.BODY))
++            p.setPen(theme.DIM)
++            p.drawText(QRectF(0, 0, self.width(), self.height()),
++                       Qt.AlignmentFlag.AlignCenter | Qt.TextFlag.TextWordWrap,
++                       "Nexus Video is not installed.\n"
++                       "Install nexus-video to enable boot animation packs.")
++            p.end()
++            return
++
++        ms = self._max_scroll()
++        if ms <= 0:
++            p.end()
++            return
++
++        track_x = self.width() - _SCROLL_W + 1
++        track_y = smin(4)
++        track_h = self.height() - _BTN_STRIP_H - smin(8)
++        p.setBrush(QColor(25, 27, 31))
++        p.setPen(Qt.PenStyle.NoPen)
++        p.drawRoundedRect(QRectF(track_x, track_y, _SCROLL_W - 2, track_h), 3, 3)
++        thumb_ratio = track_h / (track_h + ms)
++        thumb_h = max(smin(24), int(track_h * thumb_ratio))
++        thumb_y = track_y + int((track_h - thumb_h) * self._scroll_y / ms) if ms > 0 else track_y
++        p.setBrush(QColor(theme.DIM))
++        p.drawRoundedRect(QRectF(track_x, thumb_y, _SCROLL_W - 2, thumb_h), 3, 3)
++        p.end()
++
++
++# ── popup overlay ─────────────────────────────────────────────────────────────
++
++class PackPopup(QWidget):
++    """Modal overlay shown when a pack tile is tapped.
++
++    Presents Apply / Preview / Cancel without immediately committing a selection.
++    The overlay covers the full screen; tapping outside the card cancels.
++    """
++
++    _CARD_W = sx(420)
++    _CARD_H = sy(200)
++
++    def __init__(self, screen: "StartupVideoScreen", parent=None):
++        super().__init__(parent)
++        self._screen    = screen
++        self._pack_id   = ""
++        self._pack_name = ""
++
++        self._btn_apply   = SmallButton("Apply",   parent=self, font_px=theme.BUTTON)
++        self._btn_preview = SmallButton("Preview", parent=self, font_px=theme.BUTTON)
++        self._btn_cancel  = SmallButton("Cancel",  parent=self, font_px=theme.BUTTON)
++
++        self._btn_apply.clicked.connect(self._on_apply)
++        self._btn_preview.clicked.connect(self._on_preview)
++        self._btn_cancel.clicked.connect(self._on_cancel)
++
++        self.hide()
++
++    def show_for(self, pack_id: str, pack_name: str) -> None:
++        self._pack_id   = pack_id
++        self._pack_name = pack_name
++        self._arrange()
++        self.raise_()
++        self.show()
++        self.update()
++
++    def _on_apply(self) -> None:
++        self.hide()
++        self._screen.apply_pack(self._pack_id)
++
++    def _on_preview(self) -> None:
++        self.hide()
++        self._screen.preview_pack(self._pack_id, self._pack_name)
++
++    def _on_cancel(self) -> None:
++        self.hide()
++        self._screen._pending_pack = None
++
++    def _card_rect(self) -> QRectF:
++        cx = (self.width()  - self._CARD_W) // 2
++        cy = (self.height() - self._CARD_H) // 2
++        return QRectF(cx, cy, self._CARD_W, self._CARD_H)
++
++    def _arrange(self) -> None:
++        card = self._card_rect()
++        btn_w = sx(112)
++        btn_h = sy(44)
++        gap   = smin(12)
++        total = 3 * btn_w + 2 * gap
++        bx = int(card.x()) + (self._CARD_W - total) // 2
++        by = int(card.y()) + self._CARD_H - btn_h - sy(20)
++        self._btn_apply.setGeometry(bx,                  by, btn_w, btn_h)
++        self._btn_preview.setGeometry(bx + btn_w + gap,  by, btn_w, btn_h)
++        self._btn_cancel.setGeometry(bx + 2*(btn_w+gap), by, btn_w, btn_h)
++
++    def resizeEvent(self, e) -> None:
++        self._arrange()
++        super().resizeEvent(e)
++
++    def paintEvent(self, _) -> None:
++        p = QPainter(self)
++        p.setRenderHint(QPainter.RenderHint.Antialiasing)
++
++        # Solid dark overlay — linuxfb has no compositing
++        p.fillRect(self.rect(), QColor(10, 11, 15))
++
++        # Card
++        card = self._card_rect()
++        p.setBrush(QColor(28, 30, 36))
++        p.setPen(QPen(QColor(theme.BORDER_HI), 1))
++        p.drawRoundedRect(card, 12, 12)
++
++        # Pack name
++        name_r = QRectF(card.x() + sx(20), card.y() + sy(20),
++                        card.width() - sx(40), sy(32))
++        f = theme.font(theme.BUTTON, QFont.Weight.DemiBold)
++        p.setFont(f)
++        p.setPen(theme.FG)
++        elided = QFontMetricsF(f).elidedText(
++            self._pack_name, Qt.TextElideMode.ElideRight, name_r.width() - sx(8))
++        p.drawText(name_r, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter, elided)
++
++        # Subtitle
++        sub_r = QRectF(card.x() + sx(20), card.y() + sy(60),
++                       card.width() - sx(40), sy(22))
++        p.setFont(theme.font(theme.CAPTION))
++        p.setPen(theme.DIM)
++        p.drawText(sub_r, Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter,
++                   "Choose an action for this pack")
++
++        p.end()
++
++    def mousePressEvent(self, event) -> None:
++        # Tap outside the card → cancel
++        cx = (self.width()  - self._CARD_W) // 2
++        cy = (self.height() - self._CARD_H) // 2
++        if not QRect(cx, cy, self._CARD_W, self._CARD_H).contains(event.pos()):
++            self._on_cancel()
++        event.accept()
++
++
++# ── confirmation / error popup ───────────────────────────────────────────────
++
++class MessagePopup(QWidget):
++    """Centered overlay for Apply success or error. Dismissed via OK or tap outside."""
++
++    _CARD_W = sx(400)
++    _CARD_H = sy(168)
++
++    def __init__(self, parent=None):
++        super().__init__(parent)
++        self._title    = ""
++        self._subtitle = ""
++        self._is_error = False
++
++        self._btn_ok = SmallButton("OK", parent=self, font_px=theme.BUTTON)
++        self._btn_ok.clicked.connect(self.hide)
++
++        self.hide()
++
++    def show_message(self, title: str, subtitle: str, is_error: bool = False) -> None:
++        self._title    = title
++        self._subtitle = subtitle
++        self._is_error = is_error
++        self._arrange()
++        self.raise_()
++        self.show()
++        self.update()
++
++    def _arrange(self) -> None:
++        card  = self._card_rect()
++        btn_w = sx(100)
++        btn_h = sy(44)
++        bx = int(card.x()) + (self._CARD_W - btn_w) // 2
++        by = int(card.y()) + self._CARD_H - btn_h - sy(16)
++        self._btn_ok.setGeometry(bx, by, btn_w, btn_h)
++
++    def _card_rect(self) -> QRectF:
++        cx = (self.width()  - self._CARD_W) // 2
++        cy = (self.height() - self._CARD_H) // 2
++        return QRectF(cx, cy, self._CARD_W, self._CARD_H)
++
++    def resizeEvent(self, e) -> None:
++        self._arrange()
++        super().resizeEvent(e)
++
++    def paintEvent(self, _) -> None:
++        p = QPainter(self)
++        p.setRenderHint(QPainter.RenderHint.Antialiasing)
++        p.fillRect(self.rect(), QColor(10, 11, 15))
++
++        card   = self._card_rect()
++        accent = theme.AMBER if self._is_error else theme.GREEN
++        p.setBrush(QColor(28, 30, 36))
++        p.setPen(QPen(QColor(accent), 1))
++        p.drawRoundedRect(card, 12, 12)
++
++        # Title
++        f = theme.font(theme.BUTTON, QFont.Weight.DemiBold)
++        p.setFont(f)
++        p.setPen(QColor(accent))
++        title_r = QRectF(card.x() + sx(20), card.y() + sy(18),
++                         card.width() - sx(40), sy(28))
++        p.drawText(title_r,
++                   Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter,
++                   self._title)
++
++        # Subtitle
++        p.setFont(theme.font(theme.CAPTION))
++        p.setPen(theme.DIM)
++        sub_r = QRectF(card.x() + sx(20), card.y() + sy(52),
++                       card.width() - sx(40), sy(50))
++        p.drawText(sub_r,
++                   Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignHCenter
++                   | Qt.TextFlag.TextWordWrap,
++                   self._subtitle)
++
++        p.end()
++
++    def mousePressEvent(self, event) -> None:
++        # Tap outside the card → dismiss
++        cx = (self.width()  - self._CARD_W) // 2
++        cy = (self.height() - self._CARD_H) // 2
++        if not QRect(cx, cy, self._CARD_W, self._CARD_H).contains(event.pos()):
++            self.hide()
++        event.accept()
++
++
++# ── scale page ────────────────────────────────────────────────────────────────
++
++class ScalePage(Panel):
++    """The 'Scale Mode' tab: Fit / Fill / Stretch toggle."""
++
++    SCALE_LABELS = {
++        "fit":     ("Fit",     "Letterbox — black bars preserve the full frame."),
++        "fill":    ("Fill",    "Crop to fill — edges may be clipped."),
++        "stretch": ("Stretch", "Distort to fill — no cropping, aspect ratio ignored."),
++    }
++
++    def __init__(self, screen: "StartupVideoScreen", parent=None):
++        super().__init__("Scale Mode", parent)
++        self._screen = screen
++        self._buttons: dict[str, SmallButton] = {}
++        self._desc_label = ""
++
++        for key, (label, _) in self.SCALE_LABELS.items():
++            b = SmallButton(label, parent=self, font_px=theme.BUTTON, checkable=True)
++            b.clicked.connect(lambda _=False, k=key: self._pick(k))
++            self._buttons[key] = b
++
++        self._arrange_buttons()
++
++    def _arrange_buttons(self):
++        btns = list(self._buttons.values())
++        place_buttons(btns,
++                      QRectF(sx(12), sy(36), max(1, self.width() - sx(24)), sy(44)),
++                      3, smin(8))
++
++    def resizeEvent(self, e):
++        self._arrange_buttons()
++        super().resizeEvent(e)
++
++    def _pick(self, key: str) -> None:
++        self._screen.select_scale(key)
++
++    def set_scale(self, scale: str) -> None:
++        _, desc = self.SCALE_LABELS.get(scale, ("", ""))
++        self._desc_label = desc
++        for k, b in self._buttons.items():
++            b.setChecked(k == scale)
++        self.update()
++
++    def paint_body(self, p: QPainter) -> None:
++        if not self._desc_label:
++            return
++        p.setFont(theme.font(theme.BODY))
++        p.setPen(theme.DIM)
++        p.drawText(self.body().adjusted(0, sy(52), 0, 0),
++                   Qt.TextFlag.TextWordWrap, self._desc_label)
++
++
++# ── status page ───────────────────────────────────────────────────────────────
++
++class StatusPage(Panel):
++    """The 'Status' tab: build status of each pack."""
++
++    def __init__(self, parent=None):
++        super().__init__("Pack Build Status", parent)
++        self._rows: list[tuple[str, str, str | None]] = []
++
++    def set_rows(self, rows):
++        self._rows = rows
++        self.update()
++
++    def paint_body(self, p: QPainter) -> None:
++        from nexus.widgets.panels import paint_rows
++        paint_rows(p, self.body(), self._rows, label_w=sx(200))
++
++
++# ── main screen ───────────────────────────────────────────────────────────────
++
++_TAB_PACK   = "pack"
++_TAB_SCALE  = "scale"
++_TAB_STATUS = "status"
++
++
++class StartupVideoScreen(SubScreen):
++    """Settings > Startup Video: select boot animation pack and scale mode."""
++
++    TITLE    = "Startup Video"
++    SUBTITLE = "Boot animation pack and playback options"
++
++    _TAB_W = sx(160)
++
++    def __init__(self, ctl=None, parent=None):
++        super().__init__(parent)
++        self._ctl = ctl
++
++        self._selected_pack  = DEFAULT_PACK
++        self._selected_scale = DEFAULT_SCALE
++        self._packs: list    = []
++        self._pending_pack: Optional[str] = None
++        self._preview_screen = None   # created once on first use; reused per pack
++
++        # ── tab list ─────────────────────────────────────────────────────────
++        from nexus.widgets.panels import ListPanel
++        self._tabs = ListPanel("", text_row(lambda t: t[1]), rows=3,
++                               parent=self, top=6)
++        tab_items = [(_TAB_PACK, "Video Pack"), (_TAB_SCALE, "Scale Mode"), (_TAB_STATUS, "Status")]
++        self._tabs.setGeometry(0, _CONTENT_Y, self._TAB_W, _TAB_H)
++        self._tabs.set_items(tab_items, _TAB_PACK)
++        self._tabs.chosen.connect(lambda t: self._select_tab(t[0]))
++
++        # page content area (to the right of the tab list)
++        px = self._TAB_W + sx(8)
++        pw = SCREEN_W - px - sx(4)
++
++        # ── pages ─────────────────────────────────────────────────────────────
++        self._pack_page   = PackPage(self, parent=self)
++        self._scale_page  = ScalePage(self, parent=self)
++        self._status_page = StatusPage(parent=self)
++
++        for page in (self._pack_page, self._scale_page, self._status_page):
++            page.setGeometry(px, _CONTENT_Y, pw, _PAGE_H)
++            page.hide()
++
++        # ── overlays (above all other children) ──────────────────────────────
++        self._popup     = PackPopup(self, parent=self)
++        self._msg_popup = MessagePopup(parent=self)
++        for ov in (self._popup, self._msg_popup):
++            ov.setGeometry(0, 0, SCREEN_W, SCREEN_H)
++
++        self._select_tab(_TAB_PACK)
++        self._refresh()
++
++    # ── tab switching ─────────────────────────────────────────────────────────
++
++    def _select_tab(self, key: str) -> None:
++        self._tabs.selected = key
++        self._tabs._refresh()
++        mapping = {
++            _TAB_PACK:   self._pack_page,
++            _TAB_SCALE:  self._scale_page,
++            _TAB_STATUS: self._status_page,
++        }
++        for k, page in mapping.items():
++            page.setVisible(k == key)
++
++    # ── data refresh ──────────────────────────────────────────────────────────
++
++    def _refresh(self) -> None:
++        """Load current selection and pack list; update all tabs."""
++        if _BRIDGE_OK:
++            self._selected_pack, self._selected_scale = get_selection()
++            builtin_dir = _packs_root() / "builtin"
++            custom_dir  = _packs_root() / "custom"
++            try:
++                from nexus_video.packs import discover_packs
++                self._packs = discover_packs(builtin_dir, custom_dir)
++            except Exception:
++                self._packs = []
++
++        bd = _build_dir()
++        self._pack_page.rebuild(self._packs, self._selected_pack, bd)
++        self._scale_page.set_scale(self._selected_scale)
++        self._update_status()
++
++    def _update_status(self) -> None:
++        bd = _build_dir()
++        rows = []
++        for info in self._packs:
++            pid  = info.pack_id
++            name = info.name
++            dist = info.meta.get("distribution", "included")
++            if dist == "pending_trademark_review":
++                label  = "PRIVATE"
++                colour = theme.AMBER.name()
++            elif build_is_ready(bd, pid):
++                label  = "Ready"
++                colour = theme.GREEN.name()
++            else:
++                label  = "Not built"
++                colour = theme.AMBER.name()
++            rows.append((name, label, colour))
++        self._status_page.set_rows(rows)
++
++    # ── selection actions ─────────────────────────────────────────────────────
++
++    def select_pack(self, pack_id: str) -> bool:
++        """Persist pack selection immediately. Called by apply_pack and directly by tests."""
++        self._selected_pack = pack_id
++        self._pack_page.set_selected(pack_id)
++        return self._persist()
++
++    def select_scale(self, scale: str) -> None:
++        """Called when user taps a scale mode button. Saves immediately."""
++        self._selected_scale = scale
++        self._scale_page.set_scale(scale)
++        self._persist()
++
++    def _persist(self) -> bool:
++        """Write selection to preferences and service config. Returns True on success."""
++        if not _BRIDGE_OK:
++            return False
++        from nexus_video.settings_bridge import set_selection
++        service_cfg = _NV_INSTALL / "config.json"
++        try:
++            set_selection(self._selected_pack, self._selected_scale, service_cfg)
++            return True
++        except Exception:
++            return False
++
++    # ── popup actions ─────────────────────────────────────────────────────────
++
++    def show_pack_popup(self, pack_id: str) -> None:
++        """Open the Apply/Preview/Cancel popup for the given pack."""
++        name = next((p.name for p in self._packs if p.pack_id == pack_id), pack_id)
++        self._pending_pack = pack_id
++        self._popup.show_for(pack_id, name)
++
++    def apply_pack(self, pack_id: str) -> None:
++        """Persist the pending pack selection. Called from the popup's Apply button."""
++        self._pending_pack = None
++        ok = self.select_pack(pack_id)
++        if ok:
++            name = next((p.name for p in self._packs if p.pack_id == pack_id), pack_id)
++            self._msg_popup.show_message(
++                "Video Applied Successfully",
++                f"{name}\nYour selected intro will play on the next startup.",
++                is_error=False,
++            )
++        else:
++            self._msg_popup.show_message(
++                "Apply Failed",
++                "Could not save to config. Check disk space or permissions.",
++                is_error=True,
++            )
++
++    def preview_pack(self, pack_id: str, pack_name: str) -> None:
++        """Launch VideoPreviewScreen for the pending pack.
++
++        A single VideoPreviewScreen instance is created on first use and reused for
++        every subsequent preview. It is added to ctl.stack once so that ctl.push()
++        (which calls stack.setCurrentWidget) can actually make it visible.
++        """
++        from nexus.screens.video_preview import VideoPreviewScreen
++        if self._preview_screen is None:
++            self._preview_screen = VideoPreviewScreen(ctl=self._ctl)
++            if self._ctl is not None:
++                self._ctl.stack.addWidget(self._preview_screen)
++        bd    = _build_dir()
++        intro = bd / pack_id / "intro.mp4"
++        loop  = bd / pack_id / "loop.mp4"
++        self._preview_screen.load_pack(
++            intro if intro.exists() else None,
++            loop  if loop.exists()  else None,
++            pack_name,
++        )
++        if self._ctl is not None:
++            self._ctl.push(self._preview_screen)
++        else:
++            self._preview_screen.show()
++
++    # ── SubScreen lifecycle ───────────────────────────────────────────────────
++
++    def resizeEvent(self, e) -> None:
++        for ov in (self._popup, self._msg_popup):
++            ov.setGeometry(0, 0, self.width(), self.height())
++        super().resizeEvent(e)
++
++    def showEvent(self, event) -> None:
++        pending = self._pending_pack  # preserved across push/pop navigation
++        self._refresh()
++        # Re-open popup when returning from VideoPreviewScreen
++        if pending is not None and any(p.pack_id == pending for p in self._packs):
++            self.show_pack_popup(pending)
++        super().showEvent(event)
++
++    def set_data(self, data) -> None:
++        pass
++
++    def preview_selected(self) -> None:
++        """Preview the currently applied pack (programmatic / test use)."""
++        name = next((p.name for p in self._packs if p.pack_id == self._selected_pack),
++                    self._selected_pack)
++        self.preview_pack(self._selected_pack, name)
+diff --git a/nexus/screens/video_preview.py b/nexus/screens/video_preview.py
+new file mode 100644
+index 0000000..c41d6c4
+--- /dev/null
++++ b/nexus/screens/video_preview.py
+@@ -0,0 +1,263 @@
++"""In-app video preview screen for the Startup Video settings.
++
++Plays a pack's intro.mp4 (then its loop.mp4) inside a Qt QLabel using QProcess
++to pipe ffmpeg RGB24 frames without touching /dev/fb0.  The preview is completely
++isolated from the active splash service.
++
++Frame pipeline:  ffmpeg → stdout (rgb24, PREV_W×PREV_H) → QByteArray buffer →
++                  QImage(Format_RGB888) → QPixmap → QLabel
++
++All geometry uses the adaptive sx()/sy()/smin() helpers from nexus.config so the
++screen renders correctly at any supported display resolution.
++"""
++import sys
++from pathlib import Path
++from typing import Optional
++
++from PyQt6.QtCore import QByteArray, QProcess, QTimer, Qt
++from PyQt6.QtGui import QColor, QFont, QImage, QPainter, QPixmap
++from PyQt6.QtWidgets import QLabel, QWidget
++
++import importlib.util as _imu
++if _imu.find_spec("nexus_video") is None:
++    _prod = Path.home() / "nexus-video"
++    _dev  = Path(__file__).resolve().parent.parent.parent.parent
++    _nv   = _prod if (_prod / "nexus_video").exists() else _dev
++    if str(_nv) not in sys.path:
++        sys.path.insert(0, str(_nv))
++del _imu
++
++from nexus import theme
++from nexus.config import sx, sy, smin
++from nexus.widgets.buttons import SmallButton
++from nexus.widgets.panels import SubScreen
++
++# ── preview frame geometry (design space: 800×480) ───────────────────────────
++PREV_W      = sx(640)
++PREV_H      = sy(360)
++FRAME_BYTES = PREV_W * PREV_H * 3   # RGB24
++
++FPS        = 24
++_CANVAS_X  = sx(80)
++_CANVAS_Y  = sy(58)
++
++
++class VideoPreviewScreen(SubScreen):
++    """Settings > Startup Video > Preview: plays intro then loops loop.mp4 in-app."""
++
++    TITLE    = "Video Preview"
++    SUBTITLE = "In-app boot animation preview"
++
++    def __init__(self, intro_path: Optional[Path] = None,
++                 loop_path: Optional[Path] = None,
++                 pack_name: str = "", ctl=None, parent=None):
++        super().__init__(parent)
++        self._ctl          = ctl
++        self._intro_path   = intro_path
++        self._loop_path    = loop_path
++        self._pack_name    = pack_name or "Unknown Pack"
++
++        self._proc: Optional[QProcess] = None
++        self._buf          = QByteArray()
++        self._playing_loop = False
++        self._frame_count  = 0
++        self._error_text   = ""
++        self._stopped      = False
++
++        # ── video canvas label ────────────────────────────────────────────────
++        self._canvas = QLabel(self)
++        self._canvas.setGeometry(_CANVAS_X, _CANVAS_Y, PREV_W, PREV_H)
++        self._canvas.setAlignment(Qt.AlignmentFlag.AlignCenter)
++        self._canvas.setStyleSheet("background: #000;")
++
++        # ── control bar ───────────────────────────────────────────────────────
++        ctrl_y  = _CANVAS_Y + PREV_H + smin(8)
++        btn_w   = sx(100)
++        btn_h   = sy(44)
++        gap     = smin(8)
++        total_w = 3 * btn_w + 2 * gap
++        bx      = _CANVAS_X + (PREV_W - total_w) // 2
++
++        self._btn_play = SmallButton("Play",  parent=self, font_px=theme.BUTTON)
++        self._btn_stop = SmallButton("Stop",  parent=self, font_px=theme.BUTTON)
++        self._btn_back = SmallButton("Back",  parent=self, font_px=theme.BUTTON)
++
++        self._btn_play.setGeometry(bx,                 ctrl_y, btn_w, btn_h)
++        self._btn_stop.setGeometry(bx + btn_w + gap,   ctrl_y, btn_w, btn_h)
++        self._btn_back.setGeometry(bx + 2*(btn_w+gap), ctrl_y, btn_w, btn_h)
++
++        self._btn_play.clicked.connect(self._on_play)
++        self._btn_stop.clicked.connect(self._on_stop)
++        self._btn_back.clicked.connect(self._on_back)
++        self._update_buttons(playing=False)
++
++        # ── status label ─────────────────────────────────────────────────────
++        self._status = QLabel("", self)
++        self._status.setGeometry(_CANVAS_X, ctrl_y + btn_h + sy(4), PREV_W, sy(20))
++        self._status.setAlignment(Qt.AlignmentFlag.AlignCenter)
++        self._status.setStyleSheet(
++            f"color: {theme.DIM}; font-size: {theme.CAPTION}px;")
++        self._set_status(f"Pack: {self._pack_name}  —  press Play to preview")
++
++        # Frame-pacing timer (fires at FPS to stay at target rate)
++        self._frame_timer = QTimer(self)
++        self._frame_timer.setInterval(1000 // FPS)
++        self._frame_timer.timeout.connect(self._on_frame_tick)
++
++    # ── controls ──────────────────────────────────────────────────────────────
++
++    def _on_play(self):
++        self._stopped    = False
++        self._error_text = ""
++        self._start_intro()
++
++    def _on_stop(self):
++        self._stopped = True
++        self._kill_proc()
++        self._set_status("Stopped.")
++        self._update_buttons(playing=False)
++
++    def _on_back(self):
++        self._on_stop()
++        if self._ctl is not None:
++            self._ctl.back()
++
++    def _update_buttons(self, *, playing: bool) -> None:
++        self._btn_play.setEnabled(not playing)
++        self._btn_stop.setEnabled(playing)
++
++    # ── playback ──────────────────────────────────────────────────────────────
++
++    def _start_intro(self):
++        if not self._intro_path or not self._intro_path.exists():
++            self._show_error("intro.mp4 not found")
++            return
++        self._playing_loop = False
++        self._frame_count  = 0
++        self._buf.clear()
++        self._set_status(f"Playing intro  —  {self._pack_name}")
++        self._update_buttons(playing=True)
++        self._launch(self._intro_path, loop=False)
++
++    def _start_loop(self):
++        if not self._loop_path or not self._loop_path.exists():
++            self._show_error("loop.mp4 not found")
++            return
++        self._playing_loop = True
++        self._frame_count  = 0
++        self._buf.clear()
++        self._set_status(f"Playing loop  —  {self._pack_name}")
++        self._launch(self._loop_path, loop=True)
++
++    def _launch(self, path: Path, *, loop: bool) -> None:
++        self._kill_proc()
++        self._proc = QProcess(self)
++        self._proc.readyReadStandardOutput.connect(self._on_data_ready)
++        self._proc.finished.connect(self._on_proc_finished)
++        self._proc.errorOccurred.connect(self._on_proc_error)
++
++        args = ["-nostdin", "-v", "error", "-threads", "2"]
++        if loop:
++            args += ["-stream_loop", "-1"]
++        args += ["-i", str(path),
++                 "-an", "-vf", f"scale={PREV_W}:{PREV_H}",
++                 "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]
++
++        self._proc.start("ffmpeg", args)
++        self._frame_timer.start()
++
++    def _kill_proc(self) -> None:
++        self._frame_timer.stop()
++        if self._proc is not None:
++            if self._proc.state() != QProcess.ProcessState.NotRunning:
++                self._proc.kill()
++                self._proc.waitForFinished(500)
++            self._proc = None
++        self._buf.clear()
++
++    # ── ffmpeg data handling ──────────────────────────────────────────────────
++
++    def _on_data_ready(self) -> None:
++        if self._proc:
++            self._buf.append(self._proc.readAllStandardOutput())
++
++    def _on_frame_tick(self) -> None:
++        if len(self._buf) < FRAME_BYTES:
++            return
++        raw = bytes(self._buf[:FRAME_BYTES])
++        self._buf = self._buf[FRAME_BYTES:]
++        img = QImage(raw, PREV_W, PREV_H, PREV_W * 3, QImage.Format.Format_RGB888)
++        px  = QPixmap.fromImage(img)
++        self._canvas.setPixmap(px)
++        self._frame_count += 1
++
++    def _on_proc_finished(self, exit_code: int, _) -> None:
++        self._frame_timer.stop()
++        if self._stopped:
++            return
++        if not self._playing_loop and exit_code == 0:
++            # intro finished cleanly → start loop
++            self._start_loop()
++        elif exit_code != 0 and self._frame_count == 0:
++            self._show_error(f"ffmpeg exited with code {exit_code}")
++        else:
++            self._set_status("Preview finished.")
++            self._update_buttons(playing=False)
++
++    def _on_proc_error(self, error) -> None:
++        if error == QProcess.ProcessError.FailedToStart:
++            self._show_error("ffmpeg not found")
++        else:
++            self._show_error("ffmpeg error")
++
++    # ── helpers ───────────────────────────────────────────────────────────────
++
++    def _show_error(self, msg: str) -> None:
++        self._error_text = msg
++        self._kill_proc()
++        self._set_status(f"Error: {msg}")
++        self._update_buttons(playing=False)
++        pm = QPixmap(PREV_W, PREV_H)
++        pm.fill(QColor(10, 10, 12))
++        p = QPainter(pm)
++        p.setPen(QColor(theme.AMBER))
++        p.setFont(QFont("system-ui", smin(14)))
++        p.drawText(pm.rect(), Qt.AlignmentFlag.AlignCenter, f"Preview Error\n{msg}")
++        p.end()
++        self._canvas.setPixmap(pm)
++
++    def _set_status(self, msg: str) -> None:
++        self._status.setText(msg)
++
++    # ── lifecycle ─────────────────────────────────────────────────────────────
++
++    def showEvent(self, event) -> None:
++        # Auto-play when navigated to
++        if not self._stopped:
++            QTimer.singleShot(50, self._on_play)
++        super().showEvent(event)
++
++    def hideEvent(self, event) -> None:
++        self._kill_proc()
++        super().hideEvent(event)
++
++    def closeEvent(self, event) -> None:
++        self._kill_proc()
++        super().closeEvent(event)
++
++    def load_pack(self, intro_path: Optional[Path], loop_path: Optional[Path],
++                  pack_name: str) -> None:
++        """Reset state for a new pack. Call before pushing this screen."""
++        self._kill_proc()
++        self._intro_path   = intro_path
++        self._loop_path    = loop_path
++        self._pack_name    = pack_name or "Unknown Pack"
++        self._stopped      = False
++        self._error_text   = ""
++        self._frame_count  = 0
++        self._playing_loop = False
++        pm = QPixmap(PREV_W, PREV_H)
++        pm.fill(QColor(10, 10, 12))
++        self._canvas.setPixmap(pm)
++        self._set_status(f"Pack: {self._pack_name}  —  press Play to preview")
++        self._update_buttons(playing=False)

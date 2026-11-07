@@ -1,0 +1,14 @@
+{
+  "id":               "nexus_signature",
+  "name":             "Nexus Signature",
+  "type":             "builtin",
+  "version":          "1.0.0",
+  "description":      "The official Nexus Video signature theme. Clean white-on-black grid reveal with the Nexus wordmark.",
+  "intro_duration":   10,
+  "loop_duration":    5,
+  "scale_mode":       "fit",
+  "trademark_notice": null,
+  "author":           null,
+  "distribution":     "included",
+  "tags":             ["minimal", "dark", "official"]
+}

@@ -1,0 +1,61 @@
+# Nexus Video boot splash — customizable startup video for Nexus Screen.
+# Installed with:  sudo deploy/install.sh --confirm
+# Uninstalled with: sudo deploy/uninstall.sh --confirm
+# Kill switch:     touch ~/nexus-video/DISABLED  (no sudo required)
+#
+# @@USER@@ is substituted at install time by install.sh with the target user.
+# %h expands to that user's home directory at service activation time.
+#
+# This unit replaces nexus-splash.service.
+# It MUST use RuntimeDirectory=nexus-splash to maintain the handover protocol
+# that klipper_audio.py and nexus-screen's Handover class depend on.
+[Unit]
+Description=Nexus Video boot splash
+Documentation=file://%h/nexus-video/CUSTOM_VIDEOS.md
+DefaultDependencies=no
+After=local-fs.target systemd-tmpfiles-setup.service
+Before=nexus-screen.service shutdown.target
+Conflicts=shutdown.target nexus-splash.service
+# Skip if the kill switch file exists
+ConditionPathExists=!%h/nexus-video/DISABLED
+# Require the default fallback pack to be built (nexus_signature is always present post-install).
+ConditionPathExists=%h/nexus-video/build/nexus_signature/still.rgb565
+
+[Service]
+Type=simple
+User=@@USER@@
+Group=@@USER@@
+SupplementaryGroups=video tty
+# CAP_SYS_TTY_CONFIG is required for KDSETMODE on tty7 (suppress console cursor).
+AmbientCapabilities=CAP_SYS_TTY_CONFIG
+CapabilityBoundingSet=CAP_SYS_TTY_CONFIG
+NoNewPrivileges=yes
+WorkingDirectory=%h/nexus-video
+
+# CRITICAL: RuntimeDirectory=nexus-splash is the name required for the handover protocol.
+# Nexus Screen's Handover class polls /run/nexus-splash/released.
+# klipper_audio.py watches /run/nexus-splash/player.pid.
+# DO NOT change this value without updating both nexus/splash.py and klipper_audio.py.
+RuntimeDirectory=nexus-splash
+RuntimeDirectoryMode=0755
+
+StandardInput=null
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nexus-video
+
+ExecStartPre=+/usr/bin/chvt 7
+ExecStart=/usr/bin/python3 %h/nexus-video/player.py \
+    --config %h/nexus-video/config.json
+ExecStopPost=+/bin/sh -c 'systemctl -q is-active nexus-screen || chvt 1'
+
+Nice=10
+CPUWeight=20
+IOWeight=20
+MemoryMax=200M
+RuntimeMaxSec=120
+TimeoutStopSec=5
+Restart=no
+
+[Install]
+WantedBy=sysinit.target

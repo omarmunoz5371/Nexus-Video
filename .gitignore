@@ -1,0 +1,39 @@
+# ── Build output ─────────────────────────────────────────────────────────────
+# Built packs (intro.mp4, loop.mp4, still.rgb565) are generated locally.
+# They are not distributed in the repository.
+build/
+
+# ── Source media ─────────────────────────────────────────────────────────────
+# Source videos used to build packs. Too large and some are private.
+sources/
+
+# ── Private packs ─────────────────────────────────────────────────────────────
+# Voron pack: pending trademark review — not for public distribution.
+packs/builtin/voron/
+
+# User's personal custom packs (packs/custom/my_test_pack etc.).
+# Test fixture packs (corrupt_intro, missing_intro, missing_loop, no_manifest)
+# are intentionally tracked.
+packs/custom/my_test_pack/
+
+# ── Private dev copy of Nexus Screen ─────────────────────────────────────────
+nexus-screen-dev/
+
+# ── Python bytecode ───────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# ── Dev planning documents ───────────────────────────────────────────────────
+deploy/GITHUB_UPDATE_PLAN.md
+deploy/EMERGENCY_RECOVERY.md
+
+# ── Local machine config ──────────────────────────────────────────────────────
+# The active pack selection is personal; install.sh writes a default on fresh install.
+config.json
+
+# ── Misc ──────────────────────────────────────────────────────────────────────
+*.log
+*.swp
+.DS_Store
