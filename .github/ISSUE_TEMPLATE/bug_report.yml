@@ -8,7 +8,7 @@ body:
         Thanks for taking the time to report a bug. The more detail you provide, the faster it can be investigated.
 
         **Nexus Video requires Nexus Screen.** If Nexus Screen itself is not working, please report
-        the issue in the [Nexus Screen repository](https://github.com/omarmunoz5371/Nexus-Screen/issues) first.
+        the issue in the [Nexus Screen repository](https://github.com/TheOmProject/Nexus-Screen/issues) first.
 
         **Collect logs before submitting:**
         ```bash

@@ -8,7 +8,7 @@
 
 ### What is Nexus Video?
 
-Nexus Video is an optional add-on for [Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen).
+Nexus Video is an optional add-on for [Nexus Screen](https://github.com/TheOmProject/Nexus-Screen).
 It replaces the default static boot splash with animated video packs. It plays a 10-second
 animated intro once at boot, then loops ambient video while the printer connects — with no
 desktop environment required.
@@ -87,12 +87,12 @@ Installing Nexus Video is entirely optional. Nexus Screen functions normally wit
 
 **Via Nexus Screen bootstrap (recommended — installs both together):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/omarmunoz5371/Nexus-Screen/main/deploy/bootstrap.sh | bash -s -- --with-video
+curl -fsSL https://raw.githubusercontent.com/TheOmProject/Nexus-Screen/main/deploy/bootstrap.sh | bash -s -- --with-video
 ```
 
 **Standalone — add to existing Nexus Screen:**
 ```bash
-git clone https://github.com/omarmunoz5371/Nexus-Video.git ~/nexus-video
+git clone https://github.com/TheOmProject/Nexus-Video.git ~/nexus-video
 sudo bash ~/nexus-video/deploy/public-install.sh
 ```
 

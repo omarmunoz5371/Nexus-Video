@@ -1,13 +1,13 @@
 # Nexus Video
 
-> Cinematic boot splash add-on for [Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen).
+> Cinematic boot splash add-on for [Nexus Screen](https://github.com/TheOmProject/Nexus-Screen).
 
 Nexus Video is an **optional add-on** for Nexus Screen. It replaces the default static splash
 with animated startup video packs. It plays a 10-second intro once at boot, then loops ambient
 video while the printer connects — with no desktop environment required.
 
 **Status: Public Beta — v0.1.0-beta.1**  
-Requires [Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen) v0.2.0-beta.5 or later.
+Requires [Nexus Screen](https://github.com/TheOmProject/Nexus-Screen) v0.2.0-beta.5 or later.
 
 ---
 
@@ -63,13 +63,13 @@ you browse, preview, and switch packs without touching the terminal.
 
 **Via Nexus Screen bootstrap (recommended — installs Nexus Screen and Nexus Video together):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/omarmunoz5371/Nexus-Screen/main/deploy/bootstrap.sh | bash -s -- --with-video
+curl -fsSL https://raw.githubusercontent.com/TheOmProject/Nexus-Screen/main/deploy/bootstrap.sh | bash -s -- --with-video
 ```
 
 **Standalone — add to an existing Nexus Screen installation:**
 ```bash
 # 1. Clone the repository
-git clone https://github.com/omarmunoz5371/Nexus-Video.git ~/nexus-video
+git clone https://github.com/TheOmProject/Nexus-Video.git ~/nexus-video
 
 # 2. Run the hardware preflight check (no changes made)
 bash ~/nexus-video/deploy/preflight.sh
@@ -101,7 +101,7 @@ Add the following to your `moonraker.conf`, then restart Moonraker:
 [update_manager nexus-video]
 type: git_repo
 path: ~/nexus-video
-origin: https://github.com/omarmunoz5371/Nexus-Video.git
+origin: https://github.com/TheOmProject/Nexus-Video.git
 primary_branch: main
 is_system_service: False
 managed_services: nexus-video
@@ -186,7 +186,7 @@ This is a release candidate — contributions and hardware reports are welcome.
 
 ## Bug Reports
 
-[Open a Bug Report](https://github.com/omarmunoz5371/Nexus-Video/issues/new?template=bug_report.yml)
+[Open a Bug Report](https://github.com/TheOmProject/Nexus-Video/issues/new?template=bug_report.yml)
 
 Before filing: collect logs with:
 ```bash
@@ -230,4 +230,4 @@ Nexus Video is released under the [GNU General Public License v3.0](LICENSE).
 
 ## Related
 
-- **[Nexus Screen](https://github.com/omarmunoz5371/Nexus-Screen)** — the touchscreen UI Nexus Video extends (required; install first)
+- **[Nexus Screen](https://github.com/TheOmProject/Nexus-Screen)** — the touchscreen UI Nexus Video extends (required; install first)
